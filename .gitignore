@@ -1,0 +1,15 @@
+*.http
+*.log
+*.swp
+*.tmp
+*/tsconfig.tsbuildinfo
+.DS_Store
+.history
+.idea/
+.realsync
+.remote-sync.json
+.syncd
+.vscode/
+npm-debug.log
+
+node_modules

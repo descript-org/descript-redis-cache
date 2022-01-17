@@ -1,0 +1,36 @@
+{
+  "name": "descript-redis-cache",
+  "version": "3.0.0",
+  "description": "plugin for descript to use redis as cache",
+  "main": "index.js",
+  "scripts": {
+    "test": "eslint ."
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "keywords": [
+    "descript",
+    "redis"
+  ],
+  "author": "Boris Zhidkov <eljusto@yandex-team.ru>",
+  "license": "MIT",
+  "bugs": {
+    "url": ""
+  },
+  "homepage": "",
+  "engines": {
+    "node": ">= 10.0.0"
+  },
+  "dependencies": {
+    "contimer": "^1.0.0",
+    "ioredis": "^4.28.2"
+  },
+  "peerDependencies": {
+    "descript": ">=3"
+  },
+  "devDependencies": {
+    "eslint": "^7.1.0"
+  }
+}
