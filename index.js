@@ -19,9 +19,14 @@ class DescriptRedisCache {
 
         this._client = new Redis(options.redisOptions);
 
+        const optionsToLog = Object.assign({}, this._options);
+        // Don't write connection options to log because it can contain password
+        // (not only as a property, but as a part of a connection string, so it's difficult to delete only a password)
+        delete optionsToLog.redisOptions;
+
         this._log({
             type: DescriptRedisCache.EVENT.REDIS_CACHE_INITIALIZED,
-            options: options,
+            options: optionsToLog,
         });
     }
 
