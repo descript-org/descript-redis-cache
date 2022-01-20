@@ -9,15 +9,21 @@ class DescriptRedisCache {
 
     constructor(options, logger) {
         this._options = Object.assign({
+            clusterNodes: [],
             defaultKeyTTL: 60 * 60 * 24, // key ttl in seconds
             generation: 1, // increment generation to invalidate all key across breaking changes releases
             readTimeout: 100, // read timeout in milliseconds,
             redisOptions: {},
+            useCluser: false,
         }, options);
 
         this._logger = logger;
 
-        this._client = new Redis(options.redisOptions);
+        if (this._options.useCluster) {
+            this._client = new Redis.Cluster(this._options.clusterNodes, this._options.redisOptions);
+        } else {
+            this._client = new Redis(this._options.redisOptions);
+        }
 
         const optionsToLog = Object.assign({}, this._options);
         // Don't write connection options to log because it can contain password
