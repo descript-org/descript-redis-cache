@@ -14,7 +14,7 @@ class DescriptRedisCache {
             generation: 1, // increment generation to invalidate all key across breaking changes releases
             readTimeout: 100, // read timeout in milliseconds,
             redisOptions: {},
-            useCluser: false,
+            useCluster: false,
         }, options);
 
         this._logger = logger;
