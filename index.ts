@@ -162,6 +162,10 @@ export class Cache<Result> implements CacheInterface<Result> {
         });
     }
 
+    getClient() {
+        return this.#client;
+    }
+
     get({ key }: { key: string }): Promise<Result | undefined> {
         const normalizedKey = this.#normalizeKey(key);
 
