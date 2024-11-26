@@ -3,6 +3,7 @@
   "version": "4.0.0",
   "description": "plugin for descript to use redis as cache",
   "main": "./build/index.js",
+  "types": "./build/index.d.ts",
   "scripts": {
     "eslint": "npx eslint .",
     "test": "npx vitest",
