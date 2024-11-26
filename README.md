@@ -5,15 +5,23 @@ Plugin to use Redis as a cache in Descript
 
 ```js
 import de from 'descript';
-import deRedisCache from 'descript-redis-cache';
+import { Cache } from 'descript-redis-cache';
 
-const redisCache = new deRedisCache(options);
+const redisCache = new Cache(options);
+
+// subscribe to events if necessary
+// @see https://github.com/luin/ioredis#connection-events
+redisCache.getClient()
+    .on('reconnecting', () => {/* ... */})
+    .on('error', () => {/* ... */})
+    .on('close', () => {/* ... */})
+    .on('end', () => {/* ... */});
 
 const myBlock = de.http({
     block: { /* ... */ },
     options: {
-        key: ({ params }) => '_some_cache_key_from_params_',
-        cache: deRedisCache,
+        key: ({ params }) => '_some_cache_key_by_params_',
+        cache: redisCache,
     }
 });
 ```
