@@ -38,10 +38,7 @@ export interface Options {
     generation?: number;
     // read timeout in milliseconds (default: 100)
     readTimeout?: number;
-    redis: (
-        { startupNodes: ClusterNode[], options?: ClusterOptions } |
-        { options: RedisOptions }
-    );
+    redis: RedisOptions | { startupNodes: ClusterNode[], options?: ClusterOptions };
 }
 ```
 
