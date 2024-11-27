@@ -11,10 +11,7 @@ export interface Options {
     generation?: number;
     // read timeout in milliseconds (default: 100)
     readTimeout?: number;
-    redis: (
-        { startupNodes: ClusterNode[], options?: ClusterOptions } |
-        { options: RedisOptions }
-    );
+    redis: RedisOptions | { startupNodes: ClusterNode[], options?: ClusterOptions };
 }
 
 interface InnerOptions extends Options {
@@ -31,6 +28,10 @@ export type LoggerEvent = (
     {
         type: EVENT.REDIS_CACHE_INITIALIZED;
         options: Options
+    } |
+    {
+        type: EVENT.REDIS_CACHE_ERROR;
+        error: Error;
     } |
     {
         type: EVENT.REDIS_CACHE_READ_START;
@@ -153,7 +154,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                 this.#options.redis.options,
             );
         } else {
-            this.#client = new Redis(this.#options.redis.options);
+            this.#client = new Redis(this.#options.redis);
         }
 
         this.#log({
@@ -385,8 +386,9 @@ export class Cache<Result> implements CacheInterface<Result> {
     }
 }
 
-export const enum EVENT {
+export enum EVENT {
     REDIS_CACHE_INITIALIZED= 'REDIS_CACHE_INITIALIZED',
+    REDIS_CACHE_ERROR= 'REDIS_CACHE_ERROR',
 
     REDIS_CACHE_JSON_PARSING_FAILED = 'REDIS_CACHE_JSON_PARSING_FAILED',
     REDIS_CACHE_JSON_STRINGIFY_FAILED = 'REDIS_CACHE_JSON_STRINGIFY_FAILED',
