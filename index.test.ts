@@ -22,9 +22,7 @@ let cache: Cache<never>;
 let server: Server;
 beforeEach(() => {
     cache = new Cache<never>({
-        redis: {
-            options: {},
-        },
+        redis: {},
     });
 
     server = createServer((req, res) => {
