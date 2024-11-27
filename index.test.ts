@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import de from 'descript';
+import * as de from 'descript';
 import { Redis } from 'ioredis';
 import type { Mock } from 'vitest';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';

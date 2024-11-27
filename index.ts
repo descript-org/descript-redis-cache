@@ -1,6 +1,6 @@
 import { hash } from 'node:crypto';
 import type { CacheInterface } from 'descript';
-import de from 'descript';
+import { error as deError } from 'descript';
 import type { ClusterNode, ClusterOptions, RedisOptions } from 'ioredis';
 import { Cluster, Redis } from 'ioredis';
 
@@ -198,7 +198,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                     },
                 });
 
-                reject(de.error({
+                reject(deError({
                     id: EVENT.REDIS_CACHE_READ_TIMEOUT,
                 }));
             }, this.#options.readTimeout);
@@ -224,7 +224,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                         },
                     });
 
-                    reject(de.error({
+                    reject(deError({
                         id: EVENT.REDIS_CACHE_READ_ERROR,
                     }));
                 } else if (!data) {
@@ -239,7 +239,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                         },
                     });
 
-                    reject(de.error({
+                    reject(deError({
                         id: EVENT.REDIS_CACHE_READ_KEY_NOT_FOUND,
                     }));
                 } else {
@@ -260,7 +260,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                             },
                         });
 
-                        reject(de.error({
+                        reject(deError({
                             id: EVENT.REDIS_CACHE_JSON_PARSING_FAILED,
                         }));
                         return;
@@ -314,7 +314,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                         total: totalTimer,
                     },
                 });
-                reject(de.error({
+                reject(deError({
                     id: EVENT.REDIS_CACHE_JSON_STRINGIFY_FAILED,
                 }));
                 return;
@@ -336,7 +336,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                             total: totalTimer,
                         },
                     });
-                    reject(de.error({
+                    reject(deError({
                         id: EVENT.REDIS_CACHE_WRITE_ERROR,
                     }));
                 } else if (!done) {
@@ -349,7 +349,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                             total: totalTimer,
                         },
                     });
-                    reject(de.error({
+                    reject(deError({
                         id: EVENT.REDIS_CACHE_WRITE_FAILED,
                     }));
                 } else {
