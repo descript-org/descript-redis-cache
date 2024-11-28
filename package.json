@@ -1,6 +1,6 @@
 {
   "name": "descript-redis-cache",
-  "version": "4.0.5",
+  "version": "4.0.6",
   "description": "plugin for descript to use redis as cache",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
