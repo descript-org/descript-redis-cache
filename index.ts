@@ -5,12 +5,13 @@ import type { ClusterNode, ClusterOptions, RedisOptions } from 'ioredis';
 import { Cluster, Redis } from 'ioredis';
 
 export interface Options {
-    // key TTL in seconds (default: 60 * 60 * 24)
+    /** key TTL in seconds (default: 60 * 60 * 24) */
     defaultKeyTTL?: number;
-    // increment generation to invalidate all key across breaking changes releases (default: 1)
+    /** increment generation to invalidate all key across breaking changes releases (default: 1) */
     generation?: number;
-    // read timeout in milliseconds (default: 100)
+    /** read timeout in milliseconds (default: 100) */
     readTimeout?: number;
+    /** redis config */
     redis: RedisOptions | { startupNodes: ClusterNode[], options?: ClusterOptions };
 }
 
@@ -22,6 +23,11 @@ interface InnerOptions extends Options {
 
 interface Logger {
     log(event: LoggerEvent): void;
+}
+
+interface Timers {
+    start: number;
+    end: number;
 }
 
 export type LoggerEvent = (
@@ -42,29 +48,20 @@ export type LoggerEvent = (
         type: EVENT.REDIS_CACHE_READ_KEY_NOT_FOUND;
         key: string;
         normalizedKey: string;
-        timers: {
-            network: [number, number];
-            total: [number, number];
-        }
+        timers: Timers
     } |
     {
         type: EVENT.REDIS_CACHE_READ_TIMEOUT;
         key: string;
         normalizedKey: string;
-        timers: {
-            network: [number, number];
-            total: [number, number];
-        }
+        timers: Timers
     } |
     {
         type: EVENT.REDIS_CACHE_READ_ERROR;
         error: Error;
         key: string;
         normalizedKey: string;
-        timers: {
-            network: [number, number];
-            total: [number, number];
-        }
+        timers: Timers
     } |
     {
         type: EVENT.REDIS_CACHE_JSON_PARSING_FAILED;
@@ -72,20 +69,14 @@ export type LoggerEvent = (
         error: unknown;
         key: string;
         normalizedKey: string;
-        timers: {
-            network: [number, number];
-            total: [number, number];
-        }
+        timers: Timers
     } |
     {
         type: EVENT.REDIS_CACHE_READ_DONE;
         data: unknown;
         key: string;
         normalizedKey: string;
-        timers: {
-            network: [number, number];
-            total: [number, number];
-        }
+        timers: Timers
     } |
     {
         type: EVENT.REDIS_CACHE_WRITE_START;
@@ -98,38 +89,27 @@ export type LoggerEvent = (
         error: unknown;
         key: string;
         normalizedKey: string;
-        timers: {
-            total: [number, number];
-        }
+        timers: Timers
     } |
     {
         type: EVENT.REDIS_CACHE_WRITE_ERROR;
         error: unknown;
         key: string;
         normalizedKey: string;
-        timers: {
-            network: [number, number];
-            total: [number, number];
-        }
+        timers: Timers
     } |
     {
         type: EVENT.REDIS_CACHE_WRITE_FAILED;
         key: string;
         normalizedKey: string;
-        timers: {
-            network: [number, number];
-            total: [number, number];
-        }
+        timers: Timers
     } |
     {
         type: EVENT.REDIS_CACHE_WRITE_DONE;
         data: string;
         key: string;
         normalizedKey: string;
-        timers: {
-            network: [number, number];
-            total: [number, number];
-        }
+        timers: Timers
     }
 );
 
@@ -177,24 +157,19 @@ export class Cache<Result> implements CacheInterface<Result> {
                 normalizedKey,
             });
 
-            const networkTimerStart = process.hrtime();
-            const totalTimerStart = process.hrtime();
-
+            const start = Date.now();
             let isTimeout = false;
 
             const timer = setTimeout(() => {
                 isTimeout = true;
-
-                const networkTimer = process.hrtime(networkTimerStart);
-                const totalTimer = process.hrtime(totalTimerStart);
 
                 this.#log({
                     type: EVENT.REDIS_CACHE_READ_TIMEOUT,
                     key,
                     normalizedKey,
                     timers: {
-                        network: networkTimer,
-                        total: totalTimer,
+                        start,
+                        end: Date.now(),
                     },
                 });
 
@@ -208,19 +183,17 @@ export class Cache<Result> implements CacheInterface<Result> {
                     return;
                 }
 
-                const networkTimer = process.hrtime(networkTimerStart);
                 clearTimeout(timer);
 
                 if (error) {
-                    const totalTimer = process.hrtime(totalTimerStart);
                     this.#log({
                         type: EVENT.REDIS_CACHE_READ_ERROR,
                         error,
                         key,
                         normalizedKey,
                         timers: {
-                            network: networkTimer,
-                            total: totalTimer,
+                            start,
+                            end: Date.now(),
                         },
                     });
 
@@ -228,14 +201,13 @@ export class Cache<Result> implements CacheInterface<Result> {
                         id: EVENT.REDIS_CACHE_READ_ERROR,
                     }));
                 } else if (!data) {
-                    const totalTimer = process.hrtime(totalTimerStart);
                     this.#log({
                         type: EVENT.REDIS_CACHE_READ_KEY_NOT_FOUND,
                         key,
                         normalizedKey,
                         timers: {
-                            network: networkTimer,
-                            total: totalTimer,
+                            start,
+                            end: Date.now(),
                         },
                     });
 
@@ -247,7 +219,6 @@ export class Cache<Result> implements CacheInterface<Result> {
                     try {
                         parsedValue = JSON.parse(data);
                     } catch (error) {
-                        const totalTimer = process.hrtime(totalTimerStart);
                         this.#log({
                             type: EVENT.REDIS_CACHE_JSON_PARSING_FAILED,
                             data,
@@ -255,8 +226,8 @@ export class Cache<Result> implements CacheInterface<Result> {
                             key,
                             normalizedKey,
                             timers: {
-                                network: networkTimer,
-                                total: totalTimer,
+                                start,
+                                end: Date.now(),
                             },
                         });
 
@@ -266,15 +237,14 @@ export class Cache<Result> implements CacheInterface<Result> {
                         return;
                     }
 
-                    const totalTimer = process.hrtime(totalTimerStart);
                     this.#log({
                         type: EVENT.REDIS_CACHE_READ_DONE,
                         data,
                         key,
                         normalizedKey,
                         timers: {
-                            network: networkTimer,
-                            total: totalTimer,
+                            start,
+                            end: Date.now(),
                         },
                     });
 
@@ -289,7 +259,7 @@ export class Cache<Result> implements CacheInterface<Result> {
             return Promise.resolve();
         }
 
-        const totalTimerStart = process.hrtime();
+        const start = Date.now();
         const normalizedKey = this.#normalizeKey(key);
 
         return new Promise<void>((resolve, reject) => {
@@ -303,7 +273,6 @@ export class Cache<Result> implements CacheInterface<Result> {
             try {
                 json = JSON.stringify(value);
             } catch (error) {
-                const totalTimer = process.hrtime(totalTimerStart);
                 this.#log({
                     type: EVENT.REDIS_CACHE_JSON_STRINGIFY_FAILED,
                     data: value,
@@ -311,7 +280,8 @@ export class Cache<Result> implements CacheInterface<Result> {
                     key,
                     normalizedKey,
                     timers: {
-                        total: totalTimer,
+                        start,
+                        end: Date.now(),
                     },
                 });
                 reject(deError({
@@ -320,11 +290,8 @@ export class Cache<Result> implements CacheInterface<Result> {
                 return;
             }
 
-            const networkTimerStart = process.hrtime();
             // maxage - seconds
             this.#client.set(normalizedKey, json, 'EX', maxage, (error, done) => {
-                const networkTimer = process.hrtime(networkTimerStart);
-                const totalTimer = process.hrtime(totalTimerStart);
                 if (error) {
                     this.#log({
                         type: EVENT.REDIS_CACHE_WRITE_ERROR,
@@ -332,8 +299,8 @@ export class Cache<Result> implements CacheInterface<Result> {
                         key,
                         normalizedKey,
                         timers: {
-                            network: networkTimer,
-                            total: totalTimer,
+                            start,
+                            end: Date.now(),
                         },
                     });
                     reject(deError({
@@ -345,8 +312,8 @@ export class Cache<Result> implements CacheInterface<Result> {
                         key,
                         normalizedKey,
                         timers: {
-                            network: networkTimer,
-                            total: totalTimer,
+                            start,
+                            end: Date.now(),
                         },
                     });
                     reject(deError({
@@ -359,8 +326,8 @@ export class Cache<Result> implements CacheInterface<Result> {
                         key,
                         normalizedKey,
                         timers: {
-                            network: networkTimer,
-                            total: totalTimer,
+                            start,
+                            end: Date.now(),
                         },
                     });
                     resolve();
