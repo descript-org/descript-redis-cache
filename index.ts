@@ -1,5 +1,5 @@
 import { hash } from 'node:crypto';
-import type { CacheInterface } from 'descript';
+import type { CacheInterface, LoggerInterface } from 'descript';
 import { error as deError } from 'descript';
 import type { ClusterNode, ClusterOptions, RedisOptions } from 'ioredis';
 import { Cluster, Redis } from 'ioredis';
@@ -21,9 +21,7 @@ interface InnerOptions extends Options {
     readTimeout: number;
 }
 
-interface Logger {
-    log(event: LoggerEvent): void;
-}
+type Logger = LoggerInterface<LoggerEvent>;
 
 interface Timers {
     start: number;
@@ -34,10 +32,6 @@ export type LoggerEvent = (
     {
         type: EVENT.REDIS_CACHE_INITIALIZED;
         options: Options
-    } |
-    {
-        type: EVENT.REDIS_CACHE_ERROR;
-        error: Error;
     } |
     {
         type: EVENT.REDIS_CACHE_READ_START;
@@ -93,7 +87,7 @@ export type LoggerEvent = (
     } |
     {
         type: EVENT.REDIS_CACHE_WRITE_ERROR;
-        error: unknown;
+        error: Error;
         key: string;
         normalizedKey: string;
         timers: Timers
@@ -355,7 +349,6 @@ export class Cache<Result> implements CacheInterface<Result> {
 
 export enum EVENT {
     REDIS_CACHE_INITIALIZED= 'REDIS_CACHE_INITIALIZED',
-    REDIS_CACHE_ERROR= 'REDIS_CACHE_ERROR',
 
     REDIS_CACHE_JSON_PARSING_FAILED = 'REDIS_CACHE_JSON_PARSING_FAILED',
     REDIS_CACHE_JSON_STRINGIFY_FAILED = 'REDIS_CACHE_JSON_STRINGIFY_FAILED',
