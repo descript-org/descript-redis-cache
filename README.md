@@ -6,16 +6,21 @@ Plugin to use Redis as a cache in Descript
 ```js
 import de from 'descript';
 import { Cache } from 'descript-redis-cache';
+import { createSentinel } from '@redis/client';
 
-const redisCache = new Cache(options);
+const sentinel = await createSentinel({
+    name: 'sentinel-db',
+    sentinelRootNodes: [{
+        host: 'localhost',
+        port: 1234
+    }]
+})
+    // subscribe to events if necessary
+    .on('error', err => console.error('Redis Sentinel Error', err))
+    .connect();
 
-// subscribe to events if necessary
-// @see https://github.com/luin/ioredis#connection-events
-redisCache.getClient()
-    .on('reconnecting', () => {/* ... */})
-    .on('error', () => {/* ... */})
-    .on('close', () => {/* ... */})
-    .on('end', () => {/* ... */});
+
+const redisCache = new Cache({ client: sentinel });
 
 const myBlock = de.http({
     block: { /* ... */ },
@@ -38,7 +43,7 @@ export interface Options {
     generation?: number;
     // read timeout in milliseconds (default: 100)
     readTimeout?: number;
-    redis: RedisOptions | { startupNodes: ClusterNode[], options?: ClusterOptions };
+    client: `client fron @redis/client`;
 }
 ```
 
