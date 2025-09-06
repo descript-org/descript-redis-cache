@@ -32,35 +32,35 @@ interface Timers {
 
 export type LoggerEvent = (
     {
-        type: EVENT.REDIS_CACHE_INITIALIZED;
+        'type': EVENT.REDIS_CACHE_INITIALIZED;
         options: Options
     } |
     {
-        type: EVENT.REDIS_CACHE_READ_START;
+        'type': EVENT.REDIS_CACHE_READ_START;
         key: string;
         normalizedKey: string
     } |
     {
-        type: EVENT.REDIS_CACHE_READ_KEY_NOT_FOUND;
+        'type': EVENT.REDIS_CACHE_READ_KEY_NOT_FOUND;
         key: string;
         normalizedKey: string;
         timers: Timers
     } |
     {
-        type: EVENT.REDIS_CACHE_READ_TIMEOUT;
+        'type': EVENT.REDIS_CACHE_READ_TIMEOUT;
         key: string;
         normalizedKey: string;
         timers: Timers
     } |
     {
-        type: EVENT.REDIS_CACHE_READ_ERROR;
+        'type': EVENT.REDIS_CACHE_READ_ERROR;
         error: Error;
         key: string;
         normalizedKey: string;
         timers: Timers
     } |
     {
-        type: EVENT.REDIS_CACHE_JSON_PARSING_FAILED;
+        'type': EVENT.REDIS_CACHE_JSON_PARSING_FAILED;
         data: unknown;
         error: unknown;
         key: string;
@@ -68,19 +68,19 @@ export type LoggerEvent = (
         timers: Timers
     } |
     {
-        type: EVENT.REDIS_CACHE_READ_DONE;
+        'type': EVENT.REDIS_CACHE_READ_DONE;
         data: unknown;
         key: string;
         normalizedKey: string;
         timers: Timers
     } |
     {
-        type: EVENT.REDIS_CACHE_WRITE_START;
+        'type': EVENT.REDIS_CACHE_WRITE_START;
         key: string;
         normalizedKey: string
     } |
     {
-        type: EVENT.REDIS_CACHE_JSON_STRINGIFY_FAILED;
+        'type': EVENT.REDIS_CACHE_JSON_STRINGIFY_FAILED;
         data: unknown;
         error: unknown;
         key: string;
@@ -88,20 +88,20 @@ export type LoggerEvent = (
         timers: Timers
     } |
     {
-        type: EVENT.REDIS_CACHE_WRITE_ERROR;
+        'type': EVENT.REDIS_CACHE_WRITE_ERROR;
         error: Error;
         key: string;
         normalizedKey: string;
         timers: Timers
     } |
     {
-        type: EVENT.REDIS_CACHE_WRITE_FAILED;
+        'type': EVENT.REDIS_CACHE_WRITE_FAILED;
         key: string;
         normalizedKey: string;
         timers: Timers
     } |
     {
-        type: EVENT.REDIS_CACHE_WRITE_DONE;
+        'type': EVENT.REDIS_CACHE_WRITE_DONE;
         data: string;
         key: string;
         normalizedKey: string;
@@ -153,7 +153,7 @@ export class Cache<Result> implements CacheInterface<Result> {
         }
 
         this.#log({
-            type: EVENT.REDIS_CACHE_INITIALIZED,
+            'type': EVENT.REDIS_CACHE_INITIALIZED,
             options: { ...this.#options },
         });
     }
@@ -170,7 +170,7 @@ export class Cache<Result> implements CacheInterface<Result> {
 
         return new Promise((resolve, reject) => {
             this.#log({
-                type: EVENT.REDIS_CACHE_READ_START,
+                'type': EVENT.REDIS_CACHE_READ_START,
                 key,
                 normalizedKey,
             });
@@ -182,7 +182,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                 isTimeout = true;
 
                 this.#log({
-                    type: EVENT.REDIS_CACHE_READ_TIMEOUT,
+                    'type': EVENT.REDIS_CACHE_READ_TIMEOUT,
                     key,
                     normalizedKey,
                     timers: {
@@ -205,7 +205,7 @@ export class Cache<Result> implements CacheInterface<Result> {
 
                 if (error) {
                     this.#log({
-                        type: EVENT.REDIS_CACHE_READ_ERROR,
+                        'type': EVENT.REDIS_CACHE_READ_ERROR,
                         error,
                         key,
                         normalizedKey,
@@ -220,7 +220,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                     }));
                 } else if (!data) {
                     this.#log({
-                        type: EVENT.REDIS_CACHE_READ_KEY_NOT_FOUND,
+                        'type': EVENT.REDIS_CACHE_READ_KEY_NOT_FOUND,
                         key,
                         normalizedKey,
                         timers: {
@@ -238,7 +238,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                         parsedValue = JSON.parse(data);
                     } catch (error) {
                         this.#log({
-                            type: EVENT.REDIS_CACHE_JSON_PARSING_FAILED,
+                            'type': EVENT.REDIS_CACHE_JSON_PARSING_FAILED,
                             data,
                             error,
                             key,
@@ -256,7 +256,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                     }
 
                     this.#log({
-                        type: EVENT.REDIS_CACHE_READ_DONE,
+                        'type': EVENT.REDIS_CACHE_READ_DONE,
                         data,
                         key,
                         normalizedKey,
@@ -282,7 +282,7 @@ export class Cache<Result> implements CacheInterface<Result> {
 
         return new Promise<void>((resolve, reject) => {
             this.#log({
-                type: EVENT.REDIS_CACHE_WRITE_START,
+                'type': EVENT.REDIS_CACHE_WRITE_START,
                 key,
                 normalizedKey,
             });
@@ -292,7 +292,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                 json = JSON.stringify(value);
             } catch (error) {
                 this.#log({
-                    type: EVENT.REDIS_CACHE_JSON_STRINGIFY_FAILED,
+                    'type': EVENT.REDIS_CACHE_JSON_STRINGIFY_FAILED,
                     data: value,
                     error,
                     key,
@@ -312,7 +312,7 @@ export class Cache<Result> implements CacheInterface<Result> {
             this.#writer.set(normalizedKey, json, 'EX', maxage, (error, done) => {
                 if (error) {
                     this.#log({
-                        type: EVENT.REDIS_CACHE_WRITE_ERROR,
+                        'type': EVENT.REDIS_CACHE_WRITE_ERROR,
                         error,
                         key,
                         normalizedKey,
@@ -326,7 +326,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                     }));
                 } else if (!done) {
                     this.#log({
-                        type: EVENT.REDIS_CACHE_WRITE_FAILED,
+                        'type': EVENT.REDIS_CACHE_WRITE_FAILED,
                         key,
                         normalizedKey,
                         timers: {
@@ -339,7 +339,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                     }));
                 } else {
                     this.#log({
-                        type: EVENT.REDIS_CACHE_WRITE_DONE,
+                        'type': EVENT.REDIS_CACHE_WRITE_DONE,
                         data: json,
                         key,
                         normalizedKey,
