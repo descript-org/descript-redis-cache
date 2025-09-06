@@ -31,20 +31,20 @@
     "build"
   ],
   "dependencies": {
-    "ioredis": "^5.4.1"
+    "ioredis": "^5.7.0"
   },
   "peerDependencies": {
     "descript": ">=4"
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",
-    "@stylistic/eslint-plugin-ts": "^2.11.0",
+    "@stylistic/eslint-plugin-ts": "^2.13.0",
     "@types/eslint__js": "^8.42.3",
-    "@types/node": "^22.10.0",
-    "descript": "^4.0.6",
-    "eslint": "^9.15.0",
-    "typescript": "^5.7.2",
-    "typescript-eslint": "^8.16.0",
-    "vitest": "^2.1.6"
+    "@types/node": "^22.18.1",
+    "descript": "^4.0.16",
+    "eslint": "^9.35.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.42.0",
+    "vitest": "^3.2.4"
   }
 }
