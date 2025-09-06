@@ -11,6 +11,8 @@ export interface Options {
     generation?: number;
     /** read timeout in milliseconds (default: 100) */
     readTimeout?: number;
+    /** use two clients (reader and writer) with Sentinel (default: false) */
+    useReaderAndWriterWithSentinel?: boolean;
     /** redis config */
     redis: RedisOptions | { startupNodes: ClusterNode[], options?: ClusterOptions };
 }
@@ -108,7 +110,8 @@ export type LoggerEvent = (
 );
 
 export class Cache<Result> implements CacheInterface<Result> {
-    #client: Cluster | Redis;
+    #writer: Cluster | Redis;
+    #reader: Cluster | Redis;
     #logger?: Logger;
     #options: InnerOptions;
 
@@ -123,12 +126,30 @@ export class Cache<Result> implements CacheInterface<Result> {
         this.#logger = logger;
 
         if ('startupNodes' in this.#options.redis) {
-            this.#client = new Cluster(
+            this.#reader = new Cluster(
                 this.#options.redis.startupNodes,
                 this.#options.redis.options,
             );
+            this.#writer = this.#reader;
         } else {
-            this.#client = new Redis(this.#options.redis);
+            if (this.#options.useReaderAndWriterWithSentinel) {
+                // Client for write (always on master)
+                this.#writer = new Redis({
+                    ...this.#options.redis,
+                    role: 'master',
+                });
+
+                // Client for read (replica, only read-only commands)
+                this.#reader = new Redis({
+                    ...this.#options.redis,
+                    role: 'slave',
+                    readOnly: true,
+                });
+            } else {
+                this.#reader = new Redis(this.#options.redis);
+                this.#writer = this.#reader;
+            }
+
         }
 
         this.#log({
@@ -138,7 +159,10 @@ export class Cache<Result> implements CacheInterface<Result> {
     }
 
     getClient() {
-        return this.#client;
+        return {
+            reader: this.#reader,
+            writer: this.#writer,
+        };
     }
 
     get({ key }: { key: string }): Promise<Result | undefined> {
@@ -172,7 +196,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                 }));
             }, this.#options.readTimeout);
 
-            this.#client.get(normalizedKey, (error, data) => {
+            this.#reader.get(normalizedKey, (error, data) => {
                 if (isTimeout) {
                     return;
                 }
@@ -285,7 +309,7 @@ export class Cache<Result> implements CacheInterface<Result> {
             }
 
             // maxage - seconds
-            this.#client.set(normalizedKey, json, 'EX', maxage, (error, done) => {
+            this.#writer.set(normalizedKey, json, 'EX', maxage, (error, done) => {
                 if (error) {
                     this.#log({
                         type: EVENT.REDIS_CACHE_WRITE_ERROR,
