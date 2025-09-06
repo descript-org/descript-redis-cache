@@ -1,8 +1,9 @@
 import { hash } from 'node:crypto';
 import type { CacheInterface, LoggerInterface } from 'descript';
 import { error as deError } from 'descript';
-import type { ClusterNode, ClusterOptions, RedisOptions } from 'ioredis';
-import { Cluster, Redis } from 'ioredis';
+import type { RedisClientType, RedisClusterType, RedisSentinelType } from '@redis/client';
+
+type RedisClient = RedisClientType | RedisSentinelType | RedisClusterType;
 
 export interface Options {
     /** key TTL in seconds (default: 60 * 60 * 24) */
@@ -11,10 +12,8 @@ export interface Options {
     generation?: number;
     /** read timeout in milliseconds (default: 100) */
     readTimeout?: number;
-    /** use two clients (reader and writer) with Sentinel (default: false) */
-    useReaderAndWriterWithSentinel?: boolean;
-    /** redis config */
-    redis: RedisOptions | { startupNodes: ClusterNode[], options?: ClusterOptions };
+    /** @redis/client */
+    client: RedisClient;
 }
 
 interface InnerOptions extends Options {
@@ -110,8 +109,7 @@ export type LoggerEvent = (
 );
 
 export class Cache<Result> implements CacheInterface<Result> {
-    #writer: Cluster | Redis;
-    #reader: Cluster | Redis;
+    #client: RedisClient;
     #logger?: Logger;
     #options: InnerOptions;
 
@@ -124,45 +122,12 @@ export class Cache<Result> implements CacheInterface<Result> {
         };
 
         this.#logger = logger;
-
-        if ('startupNodes' in this.#options.redis) {
-            this.#reader = new Cluster(
-                this.#options.redis.startupNodes,
-                this.#options.redis.options,
-            );
-            this.#writer = this.#reader;
-        } else {
-            if (this.#options.useReaderAndWriterWithSentinel) {
-                // Client for write (always on master)
-                this.#writer = new Redis({
-                    ...this.#options.redis,
-                    role: 'master',
-                });
-
-                // Client for read (replica, only read-only commands)
-                this.#reader = new Redis({
-                    ...this.#options.redis,
-                    role: 'slave',
-                    readOnly: true,
-                });
-            } else {
-                this.#reader = new Redis(this.#options.redis);
-                this.#writer = this.#reader;
-            }
-
-        }
+        this.#client = options.client;
 
         this.#log({
             'type': EVENT.REDIS_CACHE_INITIALIZED,
             options: { ...this.#options },
         });
-    }
-
-    getClient() {
-        return {
-            reader: this.#reader,
-            writer: this.#writer,
-        };
     }
 
     get({ key }: { key: string }): Promise<Result | undefined> {
@@ -196,43 +161,30 @@ export class Cache<Result> implements CacheInterface<Result> {
                 }));
             }, this.#options.readTimeout);
 
-            this.#reader.get(normalizedKey, (error, data) => {
-                if (isTimeout) {
-                    return;
-                }
+            this.#client.get(normalizedKey)
+                .then((data) => {
+                    clearTimeout(timer);
+                    if (isTimeout) {
+                        return;
+                    }
 
-                clearTimeout(timer);
+                    if (!data) {
+                        this.#log({
+                            'type': EVENT.REDIS_CACHE_READ_KEY_NOT_FOUND,
+                            key,
+                            normalizedKey,
+                            timers: {
+                                start,
+                                end: Date.now(),
+                            },
+                        });
 
-                if (error) {
-                    this.#log({
-                        'type': EVENT.REDIS_CACHE_READ_ERROR,
-                        error,
-                        key,
-                        normalizedKey,
-                        timers: {
-                            start,
-                            end: Date.now(),
-                        },
-                    });
+                        reject(deError({
+                            id: EVENT.REDIS_CACHE_READ_KEY_NOT_FOUND,
+                        }));
+                        return;
+                    }
 
-                    reject(deError({
-                        id: EVENT.REDIS_CACHE_READ_ERROR,
-                    }));
-                } else if (!data) {
-                    this.#log({
-                        'type': EVENT.REDIS_CACHE_READ_KEY_NOT_FOUND,
-                        key,
-                        normalizedKey,
-                        timers: {
-                            start,
-                            end: Date.now(),
-                        },
-                    });
-
-                    reject(deError({
-                        id: EVENT.REDIS_CACHE_READ_KEY_NOT_FOUND,
-                    }));
-                } else {
                     let parsedValue;
                     try {
                         parsedValue = JSON.parse(data);
@@ -267,8 +219,24 @@ export class Cache<Result> implements CacheInterface<Result> {
                     });
 
                     resolve(parsedValue);
-                }
-            });
+                })
+                .catch((error) => {
+                    clearTimeout(timer);
+
+                    this.#log({
+                        'type': EVENT.REDIS_CACHE_READ_ERROR,
+                        error,
+                        key,
+                        normalizedKey,
+                        timers: {
+                            start,
+                            end: Date.now(),
+                        },
+                    });
+                    reject(deError({
+                        id: EVENT.REDIS_CACHE_READ_ERROR,
+                    }));
+                });
         });
     }
 
@@ -308,9 +276,39 @@ export class Cache<Result> implements CacheInterface<Result> {
                 return;
             }
 
+            // https://redis.io/docs/latest/commands/getex/
             // maxage - seconds
-            this.#writer.set(normalizedKey, json, 'EX', maxage, (error, done) => {
-                if (error) {
+            this.#client.set(normalizedKey, json, { expiration: { 'type': 'EX', value: maxage } })
+                .then(( done) => {
+                    if (!done) {
+                        this.#log({
+                            'type': EVENT.REDIS_CACHE_WRITE_FAILED,
+                            key,
+                            normalizedKey,
+                            timers: {
+                                start,
+                                end: Date.now(),
+                            },
+                        });
+                        reject(deError({
+                            id: EVENT.REDIS_CACHE_WRITE_FAILED,
+                        }));
+                        return;
+                    }
+
+                    this.#log({
+                        'type': EVENT.REDIS_CACHE_WRITE_DONE,
+                        data: json,
+                        key,
+                        normalizedKey,
+                        timers: {
+                            start,
+                            end: Date.now(),
+                        },
+                    });
+                    resolve();
+                })
+                .catch((error) => {
                     this.#log({
                         'type': EVENT.REDIS_CACHE_WRITE_ERROR,
                         error,
@@ -324,33 +322,7 @@ export class Cache<Result> implements CacheInterface<Result> {
                     reject(deError({
                         id: EVENT.REDIS_CACHE_WRITE_ERROR,
                     }));
-                } else if (!done) {
-                    this.#log({
-                        'type': EVENT.REDIS_CACHE_WRITE_FAILED,
-                        key,
-                        normalizedKey,
-                        timers: {
-                            start,
-                            end: Date.now(),
-                        },
-                    });
-                    reject(deError({
-                        id: EVENT.REDIS_CACHE_WRITE_FAILED,
-                    }));
-                } else {
-                    this.#log({
-                        'type': EVENT.REDIS_CACHE_WRITE_DONE,
-                        data: json,
-                        key,
-                        normalizedKey,
-                        timers: {
-                            start,
-                            end: Date.now(),
-                        },
-                    });
-                    resolve();
-                }
-            });
+                });
         });
     }
 
